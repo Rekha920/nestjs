@@ -6,6 +6,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -18,10 +20,11 @@ import { Event } from './events.entity';
 import { Like, MoreThan, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { group } from 'console';
+import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
 
 @Controller('/events')
 export class EventController {
-  private events: Event[] = [];
+  private readonly logger = new Logger(EventController.name);
 
   constructor(
     @InjectRepository(Event)
@@ -50,13 +53,18 @@ export class EventController {
 
   @Get()
   async findAll() {
-    return await this.repository.find({
-      order: {
-        id: 'DESC',
-      },
-      skip: 1,
-      take: 1,
+    this.logger.log('FIND ALL METHOD CALLED FROM THE EVENT CONTROLLER')
+    const events = await this.repository.find({
+      // order: {
+      //   id: 'DESC',
+      // },
+      // skip: 1,
+      // take: 1,
     });
+    this.logger.debug(
+      `FIND ALL RESULT : ${events.length}  , ${JSON.stringify(events)}`,
+    );
+    return events;
   }
 
   // @Get(':id')
@@ -75,9 +83,14 @@ export class EventController {
     )
     id: number,
   ) {
-    return await this.repository.findBy({
+    const event = await this.repository.findBy({
       id: id,
     });
+    if (event.length == 0) {
+      this.logger.warn(`inside the exception`);
+      throw new NotFoundException();
+    }
+    return event;
   }
 
   @Post()
@@ -101,6 +114,11 @@ export class EventController {
       id: parseInt(id),
     });
 
+    if (!index) {
+      this.logger.warn(`inside the exception`);
+      throw new NotFoundException();
+    }
+
     await this.repository.save({
       ...index,
       ...input,
@@ -114,6 +132,10 @@ export class EventController {
     const event = await this.repository.findOneBy({
       id: parseInt(id),
     });
+
+    if (!event) {
+      throw new NotFoundException();
+    }
 
     return this.repository.remove(event);
   }
