@@ -9,6 +9,9 @@ import { AppJapanService } from './app.japan.service';
 import { ConfigModule } from '@nestjs/config';
 import ormConfig from './config/ormConfig';
 import ormConfigProd from './config/ormConfig.prod';
+import { SchoolModule } from './school/school.module';
+import { EventService } from './Events/events.service';
+import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,15 +24,17 @@ import ormConfigProd from './config/ormConfig.prod';
         process.env.NODE_ENV !== 'production' ? ormConfig : ormConfigProd,
     }),
     TypeOrmModule.forFeature([Event]),
+    AuthModule,
     EventsModule,
+    SchoolModule,
   ],
   controllers: [AppController, EventController],
-  //providers: [AppService],
-  providers: [
-    {
-      provide: AppService,
-      useClass: AppJapanService,
-    },
-  ], // custome provider
+  providers: [AppService, EventService],
+  // providers: [
+  //   {
+  //     provide: AppService,
+  //     useClass: AppJapanService,
+  //   },
+  // ], // custome provider
 })
 export class AppModule {}
