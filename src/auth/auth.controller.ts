@@ -1,37 +1,36 @@
 import {
+  ClassSerializerInterceptor,
   Controller,
   Get,
-  Logger,
   Post,
-  Request,
+  SerializeOptions,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { AuthService } from './auth.service';
-import { CurrentUser } from './currentUser.decorator';
-import { UserEntity } from './user.entity';
-import { AuthGuardLocal } from './auth-gurad-local';
 import { AuthGuardJwt } from './auth-guard.jwt';
+import { AuthGuardLocal } from './auth-guard.local';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './current-user.decorator';
+import { User } from './user.entity';
 
 @Controller('auth')
+@SerializeOptions({ strategy: 'excludeAll' })
 export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
   constructor(private readonly authService: AuthService) {}
 
-  @Post('/login')
+  @Post('login')
   @UseGuards(AuthGuardLocal)
-  async login(@CurrentUser() user: UserEntity){
-    //this.logger.debug(`request $request)}`);
+  async login(@CurrentUser() user: User) {
     return {
       userId: user.id,
-      token: this.authService.getUserToken(user)
-    }
+      token: this.authService.getTokenForUser(user),
+    };
   }
 
-  @Get('/profile')
+  @Get('profile')
   @UseGuards(AuthGuardJwt)
-  async getProfile(@CurrentUser() user: UserEntity){
+  @UseInterceptors(ClassSerializerInterceptor)
+  async getProfile(@CurrentUser() user: User) {
     return user;
   }
-
 }

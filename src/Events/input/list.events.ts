@@ -1,11 +1,12 @@
-export class ListEvent{
-  when?: WhenEventFilter = WhenEventFilter.ALL;
+export class ListEvents {
+  when?: WhenEventFilter = WhenEventFilter.All;
+  page: number = 1;
 }
 
-export enum WhenEventFilter{
-  ALL = 1,
-  TODAY,
-  TOMORROW,
-  THISWEEK,
-  NEXTWEEK
+export enum WhenEventFilter {
+  All = 1,
+  Today,
+  Tommorow,
+  ThisWeek,
+  NextWeek
 }

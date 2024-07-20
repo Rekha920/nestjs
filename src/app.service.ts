@@ -1,12 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
-  }
+  constructor(
+    @Inject('APP_NAME')
+    private readonly name: string
+  ) { }
 
-  getBye(): string {
-    return 'Good Bye..!';
+  getHello(): string {
+    return `Hello World! from ${this.name}`;
   }
 }

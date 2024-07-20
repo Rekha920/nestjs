@@ -1,12 +1,11 @@
-// import { EventService } from './events.service';
 import {
   Body,
   ClassSerializerInterceptor,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
-  HttpStatus,
   Logger,
   NotFoundException,
   Param,
@@ -17,165 +16,155 @@ import {
   SerializeOptions,
   UseGuards,
   UseInterceptors,
+  UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { CreateEventDto } from './input/events.dto';
-import { UpdateEventDto } from './input/update.events.dto';
-import { Event } from './events.entity';
-import { Like, MoreThan, Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { group } from 'console';
-import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
-import { EventService } from './events.service';
-import { ListEvent } from './input/list.events';
-import { CurrentUser } from 'src/auth/currentUser.decorator';
-import { UserEntity } from 'src/auth/user.entity';
-import { AuthGuardJwt } from 'src/auth/auth-guard.jwt';
+import { AuthGuardJwt } from './../auth/auth-guard.jwt';
+import { CurrentUser } from './../auth/current-user.decorator';
+import { User } from './../auth/user.entity';
+import { EventsService } from './events.service';
+import { CreateEventDto } from './input/create-event.dto';
+import { ListEvents } from './input/list.events';
+import { UpdateEventDto } from './input/update-event.dto';
 
 @Controller('/events')
 @SerializeOptions({ strategy: 'excludeAll' })
-export class EventController {
-  private readonly logger = new Logger(EventController.name);
+export class EventsController {
+  private readonly logger = new Logger(EventsController.name);
 
-  constructor(
-    @InjectRepository(Event)
-    private readonly repository: Repository<Event>,
-    private readonly eventsService: EventService,
-  ) {}
+  constructor(private readonly eventsService: EventsService) {}
 
-  @Get('/practice')
-  async practice() {
-    console.log('inside');
-    return await this.repository.find({
-      where: [
-        {
-          id: MoreThan(2),
-          when: MoreThan(new Date('2021-02-12T13:00:00')),
-        },
-        {
-          description: Like('%%'),
-        },
-      ],
-      take: 2,
-      order: {
-        id: 'DESC',
-      },
-    });
-  }
-
-  @Get('/practice2')
-  async practice2() {
-    return await this.repository
-      .createQueryBuilder('e')
-      .select(['e.id', 'e.name'])
-      .orderBy('id', 'DESC')
-      .take(3)
-      .getMany();
-    //agr entity mai eager nh use krna hai toh find(1,{ relations:['attendees]})
-    // return await this.repository.findAndCount(); //ye eager true hai toh
-    // return await this.repository.findOne({
-    //   relations: ['attendees']
-    // })
-  }
-
-  // @Get()
-  // async findAll() {
-  //   this.logger.log('FIND ALL METHOD CALLED FROM THE EVENT CONTROLLER')
-  //   const events = await this.repository.find({
-  //     // order: {
-  //     //   id: 'DESC',
-  //     // },
-  //     // skip: 1,
-  //     // take: 1,
-  //   });
-  //   this.logger.debug(
-  //     `FIND ALL RESULT : ${events.length}  , ${JSON.stringify(events)}`,
-  //   );
-  //   return events;
-  // }
-
-  
   @Get()
-  async findAll(@Query() filter: ListEvent) {
-    this.logger.debug(filter, 'filter');
-    this.logger.log('FIND ALL METHOD CALLED FROM THE EVENT CONTROLLER')
-    const events = await this.eventsService.getAttendeeCountWithFilter(filter);
-    this.logger.debug(
-      `FIND ALL RESULT : ${events.length}  , ${JSON.stringify(events)}`,
-    );
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @UseInterceptors(ClassSerializerInterceptor)
+  async findAll(@Query() filter: ListEvents) {
+    const events =
+      await this.eventsService.getEventsWithAttendeeCountFilteredPaginated(
+        filter,
+        {
+          total: true,
+          currentPage: filter.page,
+          limit: 2,
+        },
+      );
     return events;
   }
 
-  // @Get(':id')
-  // async findOne(@Param('id', ParseIntPipe) id) {
-  //   console.log(id, typeof id);
-  //   return await this.repository.findBy({
-  //     id: id,
-  //   });
+  // @Get('/practice')
+  // async practice() {
+  //   // return await this.repository.find({
+  //   //   select: ['id', 'when'],
+  //   //   where: [{
+  //   //     id: MoreThan(3),
+  //   //     when: MoreThan(new Date('2021-02-12T13:00:00'))
+  //   //   }, {
+  //   //     description: Like('%meet%')
+  //   //   }],
+  //   //   take: 2,
+  //   //   order: {
+  //   //     id: 'DESC'
+  //   //   }
+  //   // });
+  // }
+
+  // @Get('practice2')
+  // async practice2() {
+  //   // // return await this.repository.findOne(
+  //   // //   1,
+  //   // //   { relations: ['attendees'] }
+  //   // // );
+  //   // const event = await this.repository.findOne(
+  //   //   1,
+  //   //   { relations: ['attendees'] }
+  //   // );
+  //   // // const event = new Event();
+  //   // // event.id = 1;
+
+  //   // const attendee = new Attendee();
+  //   // attendee.name = 'Using cascade';
+  //   // // attendee.event = event;
+
+  //   // event.attendees.push(attendee);
+  //   // // event.attendees = [];
+
+  //   // // await this.attendeeRepository.save(attendee);
+  //   // await this.repository.save(event);
+
+  //   // return event;
+
+  //   // return await this.repository.createQueryBuilder('e')
+  //   //   .select(['e.id', 'e.name'])
+  //   //   .orderBy('e.id', 'ASC')
+  //   //   .take(3)
+  //   //   .getMany();
   // }
 
   @Get(':id')
   @UseInterceptors(ClassSerializerInterceptor)
-  async findOne(
-    @Param(
-      'id',
-      new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }),
-    )
-    id: number,
-  ) {
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    // console.log(typeof id);
+    const event = await this.eventsService.getEventWithAttendeeCount(id);
 
-    return await this.eventsService.getEvent(id);
-    // const event = await this.repository.findBy({
-    //   id: id,
-    // });
-    // if (event.length == 0) {
-    //   this.logger.warn(`inside the exception`);
-    //   throw new NotFoundException();
-    // }
-    // return event;
-  }
-
-  @Post()
-  @UseGuards(AuthGuardJwt)
-  async createEvent(
-    @Body() input: CreateEventDto,
-    @CurrentUser() user: UserEntity,
-    // @Body(new ValidationPipe({ groups: ['create'] })) input: CreateEventDto,
-  ) {
-    return this.eventsService.createEvent(input, user);
-  }
-
-  @Patch(':id')
-  async updateEvent(
-    @Param('id') id,
-    @Body() input: UpdateEventDto,
-    // @Body(new ValidationPipe({ groups: ['update'] })) input: UpdateEventDto,
-  ) {
-    const index = await this.repository.findOneBy({
-      id: parseInt(id),
-    });
-
-    if (!index) {
-      this.logger.warn(`inside the exception`);
+    if (!event) {
       throw new NotFoundException();
     }
 
-    await this.repository.save({
-      ...index,
-      ...input,
-      when: input.when ? new Date(input.when) : index.when,
-    });
+    return event;
+  }
+
+  // You can also use the @UsePipes decorator to enable pipes.
+  // It can be done per method, or for every method when you
+  // add it at the controller level.
+  @Post()
+  @UseGuards(AuthGuardJwt)
+  @UseInterceptors(ClassSerializerInterceptor)
+  async create(@Body() input: CreateEventDto, @CurrentUser() user: User) {
+    return await this.eventsService.createEvent(input, user);
+  }
+
+  // Create new ValidationPipe to specify validation group inside @Body
+  // new ValidationPipe({ groups: ['update'] })
+  @Patch(':id')
+  @UseGuards(AuthGuardJwt)
+  @UseInterceptors(ClassSerializerInterceptor)
+  async update(
+    @Param('id', ParseIntPipe) id,
+    @Body() input: UpdateEventDto,
+    @CurrentUser() user: User,
+  ) {
+    const event = await this.eventsService.findOne(id);
+
+    if (!event) {
+      throw new NotFoundException();
+    }
+
+    if (event.organizerId !== user.id) {
+      throw new ForbiddenException(
+        null,
+        `You are not authorized to change this event`,
+      );
+    }
+
+    return await this.eventsService.updateEvent(event, input);
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuardJwt)
   @HttpCode(204)
-  async removeEvent(@Param('id') id) {
-    const result = await this.eventsService.deleteEvent(id);
+  async remove(@Param('id', ParseIntPipe) id, @CurrentUser() user: User) {
+    const event = await this.eventsService.findOne(id);
 
-    if (result?.affected !== 1) {
+    if (!event) {
       throw new NotFoundException();
     }
 
-   return result;
+    if (event.organizerId !== user.id) {
+      throw new ForbiddenException(
+        null,
+        `You are not authorized to remove this event`,
+      );
+    }
+
+    await this.eventsService.deleteEvent(id);
   }
 }

@@ -1,40 +1,42 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { EventController } from './Events/events.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Event } from './Events/events.entity';
-import { EventsModule } from './events/events.module';
-import { AppJapanService } from './app.japan.service';
 import { ConfigModule } from '@nestjs/config';
-import ormConfig from './config/ormConfig';
-import ormConfigProd from './config/ormConfig.prod';
-import { SchoolModule } from './school/school.module';
-import { EventService } from './Events/events.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
+import { AppDummy } from './app.dummy';
+import { AppJapanService } from './app.japan.service';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import ormConfig from './config/orm.config';
+import ormConfigProd from './config/orm.config.prod';
+import { EventsModule } from './events/events.module';
+import { SchoolModule } from './school/school.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: [ormConfig],
-      expandVariables: true,
+      expandVariables: true
     }),
     TypeOrmModule.forRootAsync({
-      useFactory:
-        process.env.NODE_ENV !== 'production' ? ormConfig : ormConfigProd,
+      useFactory: process.env.NODE_ENV !== 'production'
+        ? ormConfig : ormConfigProd
     }),
-    TypeOrmModule.forFeature([Event]),
     AuthModule,
     EventsModule,
-    SchoolModule,
+    SchoolModule
   ],
-  controllers: [AppController, EventController],
-  providers: [AppService, EventService],
-  // providers: [
-  //   {
-  //     provide: AppService,
-  //     useClass: AppJapanService,
-  //   },
-  // ], // custome provider
+  controllers: [AppController],
+  providers: [{
+    provide: AppService,
+    useClass: AppJapanService
+  }, {
+    provide: 'APP_NAME',
+    useValue: 'Nest Events Backend!'
+  }, {
+    provide: 'MESSAGE',
+    inject: [AppDummy],
+    useFactory: (app) => `${app.dummy()} Factory!`
+  }, AppDummy],
 })
-export class AppModule {}
+export class AppModule { }

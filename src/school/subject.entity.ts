@@ -1,10 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinTable,
-  ManyToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Teacher } from './teacher.entity';
 
 @Entity()
@@ -15,7 +9,9 @@ export class Subject {
   @Column()
   name: string;
 
-  @ManyToMany(() => Teacher, (teacher) => teacher.subjects, { cascade: true })
+  @ManyToMany(
+    () => Teacher, (teacher) => teacher.subjects, { cascade: true }
+  )
   @JoinTable()
   teachers: Teacher[];
 }
